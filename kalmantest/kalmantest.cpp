@@ -6,8 +6,8 @@ RM_kalmanfilter::RM_kalmanfilter()
 {
     measurement_matrix = Mat::zeros(2,1,CV_32F);
     t = 0.005;
-    KF_.transitionMatrix = (Mat_<float>(4, 4) << 1, 0,t*t/2, 0,
-                                                 0, 1, 0, t*t/2,
+    KF_.transitionMatrix = (Mat_<float>(4, 4) << 1, 0,t, 0,
+                                                 0, 1, 0, t,
                                                  0, 0, 1, 0,
                                                  0, 0, 0, 1);
 
@@ -25,16 +25,19 @@ RM_kalmanfilter::~RM_kalmanfilter(){
 
 Point2f RM_kalmanfilter::predict_point(double _t, Point _p)
 {
-    t = _t;
-    Mat prediction = KF_.predict();//如果影响较小，可以考虑加入一阶滤波器直接取这里算出的点
-    Point2f predict_pt = Point2f(prediction.at<float>(0),prediction.at<float>(1));
-
+    int k=20;
+    t =k*_t;
+    text t(k);
+    Mat prediction = KF_.predict();
+    Point2f predict_pt_1 = Point2f(prediction.at<float>(0),prediction.at<float>(1));
+    t.push(predict_pt_1,size);
+    int length=t.re();
+   if(length>k)
+     Point2f predict_pt=t.print((length-1)%k);
     measurement_matrix.at<float>(0,0) = _p.x;
     measurement_matrix.at<float>(1,0) = _p.y;
-
     KF_.correct(measurement_matrix);
-
-    Point2f anti_kalmanPoint;
+     Point2f anti_kalmanPoint;
     if((_p.x + anti_range*(_p.x - predict_pt.x))<=CAMERA_RESOLUTION_COLS
         || (_p.x + anti_range*(_p.x - predict_pt.x))>=0)
     {
@@ -48,9 +51,10 @@ Point2f RM_kalmanfilter::predict_point(double _t, Point _p)
         anti_kalmanPoint.x = _p.x;
     }
     anti_kalmanPoint.y = _p.y;
-
+    
     return anti_kalmanPoint;
 }
+
 
 void RM_kalmanfilter::reset()
 {
